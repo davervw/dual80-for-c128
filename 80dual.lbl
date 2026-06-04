@@ -1,0 +1,16 @@
+	col	= $1bf9	; ?
+	mult40low	= $1b50	; ?
+	attrs_line	= $1b28	; ?
+	screen_line	= $1b00	; ?
+	vdc_value	= $d601
+	ending	= $1bfc	; unused
+	vdc_register	= $d600
+	display_credit	= $1a7d	; ?
+	row	= $1bfa	; ?
+	mult80high	= $1b9b	; ?
+	avoid_pages	= $1600	; ?
+	vdc_to_vicii_color	= $1bb4	; ?
+	mult80low	= $1b82	; ?
+	mult40high	= $1b69	; ?
+	vdc_init	= $1bc4	; ?
+	linenum	= $1bfb	; ?
