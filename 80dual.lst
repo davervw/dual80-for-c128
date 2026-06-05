@@ -285,17 +285,17 @@
    283                          vdc_to_vicii_color:
    284  1bb4 000c060e050d0b03...    !byte $00,$0c,$06,$0e,$05,$0d,$0b,$03,$02,$0a,$08,$04,$09,$07,$0f,$01
    285                          
-   286                          vdc_init:
-   287  1bc4 003f                   !byte $00,$3f
-   288  1bc6 0128                   !byte $01,$28
-   289  1bc8 0236                   !byte $02,$36
-   290  1bca 1689                   !byte $16,$89
-   291  1bcc 1957                   !byte $19,$57
-   292  1bce 1b28                   !byte $1b,$28
-   293  1bd0 0c00                   !byte $0c,$00
-   294  1bd2 0d28                   !byte $0d,$28
-   295  1bd4 1528                   !byte $15,$28
-   296  1bd6 ffff                   !byte $ff,$ff
+   286                          vdc_init: ; // https://techwithdave.davevw.com/2023/12/commodore-128-vdc-reference.html
+   287  1bc4 003f                   !byte $00,$3f ; horizontal total (was 126/127)
+   288  1bc6 0128                   !byte $01,$28 ; horizontal displayed (was 80)
+   289  1bc8 0236                   !byte $02,$36 ; horizontal sync position (was 102)
+   290  1bca 1689                   !byte $16,$89 ; characters displayed %10001001 (8/9, was 7/8)
+   291  1bcc 1957                   !byte $19,$57 ; graph/text/etc %01010111 (set double Pixel mode - bit 4)
+   292  1bce 1b28                   !byte $1b,$28 ; addr incr per row (40, was 0) so display skips 40 characters
+   293  1bd0 0c00                   !byte $0c,$00 ; display address high (unchanged)
+   294  1bd2 0d28                   !byte $0d,$28 ; display address low (+40 characters to skip left side)
+   295  1bd4 1528                   !byte $15,$28 ; atribute address low (+40 characters to skip left side)
+   296  1bd6 ffff                   !byte $ff,$ff ; end of table marker
    297                          
    298                          *=$1BF9:
    299  1bf9 00                 col: !byte 0

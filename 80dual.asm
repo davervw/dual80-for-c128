@@ -283,17 +283,17 @@ mult80high:
 vdc_to_vicii_color:
     !byte $00,$0c,$06,$0e,$05,$0d,$0b,$03,$02,$0a,$08,$04,$09,$07,$0f,$01
 
-vdc_init:
-    !byte $00,$3f
-    !byte $01,$28
-    !byte $02,$36
-    !byte $16,$89
-    !byte $19,$57
-    !byte $1b,$28
-    !byte $0c,$00
-    !byte $0d,$28
-    !byte $15,$28
-    !byte $ff,$ff
+vdc_init: ; // https://techwithdave.davevw.com/2023/12/commodore-128-vdc-reference.html
+    !byte $00,$3f ; horizontal total (was 126/127)
+    !byte $01,$28 ; horizontal displayed (was 80)
+    !byte $02,$36 ; horizontal sync position (was 102)
+    !byte $16,$89 ; characters displayed %10001001 (8/9, was 7/8)
+    !byte $19,$57 ; graph/text/etc %01010111 (set double Pixel mode - bit 4)
+    !byte $1b,$28 ; addr incr per row (40, was 0) so display skips 40 characters
+    !byte $0c,$00 ; display address high (unchanged)
+    !byte $0d,$28 ; display address low (+40 characters to skip left side)
+    !byte $15,$28 ; atribute address low (+40 characters to skip left side)
+    !byte $ff,$ff ; end of table marker
 
 *=$1BF9:
 col: !byte 0
