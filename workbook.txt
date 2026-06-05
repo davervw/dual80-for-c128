@@ -1,0 +1,386 @@
+Dual 40-screen 80-column mode for fun
+
+* 80 column set to 40 column, settings like RGB64 or recent VDC 40COL DEMO
+  data 0,63, 1,40, 2,54, 22,137, 25,87, 27,40, -1, -1
+* (no border.  inverse wouldn't solve issue, just flip background/foreground, so multiple bkg, one fg)
+* FAST mode switches to normal 80 column mode
+* GRAPHIC 0 switches to normal 40 column mode
+* GRAPHIC 5 w/ SLOW = dual screen mode
+* Each IRQ compare 80 column (source) to 40 column (destination), if not correct, copy text/attributes (250 bytes max)
+* Translate attributes accordingly
+* apply active character from KERNAL RAM set to VIC-II if changed
+* Except if IRQ return address is address range where updating VDC, then skip
+  avoid C43E-CE36 (or C400-CEFF)
+  avoid 81E0-82EF (or 8100-82FF)
+  avoid 6A35-6A42 (or 6A00-6AFF)
+  avoid E17E-E1EB (or E100-E1FF)
+  avoid FC6B-FC70 (or FC00-FCFF)
+* Scrolling screen may be excruciating slow, or tears
+* point VDC index to screen memory to VDC:0028, with skip 40 bytes option.   So right side of screen display.
+* 1300-1BFF is available for IRQ routine
+* C000-CFFF (4K) is available, *BUT* is Bank 0, doesn't have access to I/O Bank 15.
+* Could advance start of basic above 1C00 if need more shared RAM in bank 0/15
+* Future option to flip left/right sides
+* Mimic VDC look on VIC-II with screen color, border color, character color
+* Blink cursor on VIC-II screen when appropriate, using VDC cursor location
+* FFFA/B NMI, FFFC/D Reset, FFFE/F IRQ
+* Colors:   VDC     0 15  8  7 11  4  2 13 10 12  9  6  1  5  3 14 = 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+            VICII   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 = 0 12  6 14  5 13 11  3  2 10  8  4  9  7 15  1
+* VDC 4-bit Colors are RGBI
+* 0000-1FFF Screen Memory
+* 2000-3FFF Attributes
+* 4000-.... Chargen
+
+
+Script
+Start C128
+Attach disk
+Start recording
+BOOT ALT+F12
+DLOAD"DEMO2
+LIST
+RUN
+BREAK after scrolling
+
+*** OPTIONAL
+STOP+RESTORE
+RUN again
+BREAK
+RUN "DEMO
+PRESS KEY
+*** OPTIONAL
+
+CATALOG
+END
+
+       fa fb fc fd fe ff
+>ffffa 05 ff 3d ff 17 ff
+
+. 0ff17  48       pha
+. fff19  48       pha
+. fff1a  98       tya
+. fff1b  48       pha
+. fff1c  ad 00 ff lda $ff00
+. fff1f  48       pha
+. fff20  a9 00    lda #$00
+. fff22  8d 00 ff sta $ff00
+. fff25  ba       tsx
+. fff26  bd 05 01 lda $0105,x
+. fff29  29 10    and #$10
+. fff2b  f0 03    beq $ff30
+. fff2d  6c 16 03 jmp ($0316)  BRK
+. fff30  6c 14 03 jmp ($0314)  IRQ -> FA65
+. fff33  68       pla
+. fff34  8d 00 ff sta $ff00
+. fff37  68       pla
+. fff38  a8       tay
+. fff39  68       pla
+. fff3a  aa       tax
+. fff3b  68       pla
+. fff3c  40       rti
+
+>01300 a0 00 be c4 1b 30 12 b9 c5 1b 8e 00 d6 2c 00 d6
+>01310 10 fb 8d 01 d6 c8 c8 d0 e9 a9 27 85 e7 85 ef a9
+>01320 00 8d 20 d0 8d 21 d0 60 
+
+. 01300  a0 00    ldy #$00
+. 01302  be c4 1b ldx $1bc4,y
+. 01305  30 12    bmi $1319
+. 01307  b9 c5 1b lda $1bc5,y
+. 0130a  8e 00 d6 stx $d600
+. 0130d  2c 00 d6 bit $d600
+. 01310  10 fb    bpl $130d
+. 01312  8d 01 d6 sta $d601
+. 01315  c8       iny
+. 01316  c8       iny
+. 01317  d0 e9    bne $1302
+. 01319  a9 27    lda #$27
+. 0131b  85 e7    sta $e7
+. 0131d  85 ef    sta $ef
+. 0131f  a9 00    lda #$00
+. 01321  8d 20 d0 sta $d020
+. 01324  8d 21 d0 sta $d021
+. 01327  60       rts
+
+m 1300 1370
+>01300 a0 00 be c4 1b 30 12 b9 c5 1b 8e 00 d6 2c 00 d6:...D.0.YE...V,.V
+>01310 10 fb 8d 01 d6 c8 c8 d0 e9 a9 27 85 e7 85 ef a9:....VHHPII'.G.OI
+>01320 00 8d 20 d0 8d 21 d0 a0 00 20 35 13 20 34 13 c8:.. P.!P.. 5. 4.H
+>01330 c0 19 90 f5 60 b9 9b 1b a2 12 8e 00 d6 2c 00 d6:...U.Y..B...V,.V
+>01340 10 fb 8d 01 d6 b9 82 1b a2 13 8e 00 d6 2c 00 d6:....VY..B...V,.V
+>01350 10 fb 8d 01 d6 98 48 a0 00 a2 1f 8e 00 d6 2c 00:....V.h..B...V,.
+>01360 d6 10 fb ad 01 d6 99 00 1b c8 c0 28 90 ed 68 a8:V..M.V...H.(.MHH
+>01370 60 00 ff ff ff ff 00 00 00 00 ff ff ff ff 00 00:................
+
+>1300  a0 00 be c4  1b 30 12 b9  c5 1b 8e 00  d6 2c 00 d6   .....0.......,..
+>1310  10 fb 8d 01  d6 c8 c8 d0  e9 ea ea ea  ea ea ea a9   ................
+>1320  00 8d 20 d0  8d 21 d0 a0  00 20 35 13  20 34 13 c8   .. ..!... 5. 4..
+>1330  c0 19 90 f5  60 b9 9b 1b  a2 12 8e 00  d6 2c 00 d6   ....`........,..
+>1340  10 fb 8d 01  d6 b9 82 1b  a2 13 8e 00  d6 2c 00 d6   .............,..
+>1350  10 fb 8d 01  d6 98 48 a0  00 a2 1f 8e  00 d6 2c 00   ......H.......,.
+>1360  d6 10 fb ad  01 d6 99 00  1b c8 c0 28  90 ed 18 b9   ...........(....
+>1370  9b 1b 69 08  a2 12 8e 00  d6 2c 00 d6  10 fb 8d 01   ..i......,......
+>1380  d6 b9 82 1b  a2 13 8e 00  d6 2c 00 d6  10 fb 8d 01   .........,......
+>1390  d6 a0 00 a2  1f 8e 00 d6  2c 00 d6 10  fb ad 01 d6   ........,.......
+>13a0  99 28 1b c8  c0 28 90 ed  68 a8 60                   .(...(..h.`
+
+>1300  a0 00 be c4  1b 30 12 b9  c5 1b 8e 00  d6 2c 00 d6   .....0.......,..
+>1310  10 fb 8d 01  d6 c8 c8 d0  e9 ea ea ea  ea ea ea a9   ................
+>1320  00 8d 20 d0  8d 21 d0 a0  00 20 35 13  20 34 13 c8   .. ..!... 5. 4..
+>1330  c0 19 90 f5  60 b9 9b 1b  a2 12 8e 00  d6 2c 00 d6   ....`........,..
+>1340  10 fb 8d 01  d6 b9 82 1b  a2 13 8e 00  d6 2c 00 d6   .............,..
+>1350  10 fb 8d 01  d6 98 48 a0  00 a2 1f 8e  00 d6 2c 00   ......H.......,.
+>1360  d6 10 fb ad  01 d6 99 00  1b c8 c0 28  90 ed 68 48   ...........(..hH
+>1370  a8 18 b9 9b  1b 69 08 a2  12 8e 00 d6  2c 00 d6 10   .....i......,...
+>1380  fb 8d 01 d6  b9 82 1b a2  13 8e 00 d6  2c 00 d6 10   ............,...
+>1390  fb 8d 01 d6  a0 00 a2 1f  8e 00 d6 2c  00 d6 10 fb   ...........,....
+>13a0  ad 01 d6 99  28 1b c8 c0  28 90 ed 68  a8 60         ....(...(..h.`
+
+>C:1300  a0 00 be c4  1b 30 12 b9  c5 1b 8e 00  d6 2c 00 d6   .....0.......,..
+>C:1310  10 fb 8d 01  d6 c8 c8 d0  e9 ea ea ea  ea ea ea a9   ................
+>C:1320  00 8d 20 d0  8d 21 d0 a0  00 20 35 13  20 34 13 c8   .. ..!... 5. 4..
+>C:1330  c0 19 90 f5  60 b9 9b 1b  a2 12 8e 00  d6 2c 00 d6   ....`........,..
+>C:1340  10 fb 8d 01  d6 b9 82 1b  a2 13 8e 00  d6 2c 00 d6   .............,..
+>C:1350  10 fb 8d 01  d6 98 48 a0  00 a2 1f 8e  00 d6 2c 00   ......H.......,.
+>C:1360  d6 10 fb ad  01 d6 99 00  1b c8 c0 28  90 ed 68 48   ...........(..hH
+>C:1370  a8 18 b9 9b  1b 69 08 a2  12 8e 00 d6  2c 00 d6 10   .....i......,...
+>C:1380  fb 8d 01 d6  b9 82 1b a2  13 8e 00 d6  2c 00 d6 10   ............,...
+>C:1390  fb 8d 01 d6  a0 00 a2 1f  8e 00 d6 2c  00 d6 10 fb   ...........,....
+>C:13a0  ad 01 d6 99  28 1b c8 c0  28 90 ed 68  a8 60 98 48   ....(...(..h.`.H
+>C:13b0  a9 08 ea ea  ea 79 69 1b  8d d0 13 69  b0 8d d9 13   .....yi....i....
+>C:13c0  b9 50 1b 8d  cf 13 8d d8  13 a2 00 bd  00 1b 9d 00   .P..............
+>C:13d0  08 bc 28 1b  b9 b4 1b 9d  00 d8 e8 e0  28 90 ec 68   ..(.........(..h
+>C:13e0  a8 60               
+
+>01300 a0 00 be c4 1b 30 12 b9 c5 1b 8e 00 d6 2c 00 d6:...D.0.YE...V,.V
+>01310 10 fb 8d 01 d6 c8 c8 d0 e9 ea ea ea ea ea ea a9:....VHHPIJJJJJJI
+>01320 00 8d 20 d0 8d 21 d0 a0 00 20 35 13 20 ae 13 c8:.. P.!P.. 5. N.H
+>01330 c0 19 90 f5 60 b9 9b 1b a2 12 8e 00 d6 2c 00 d6:...U.Y..B...V,.V
+>01340 10 fb 8d 01 d6 b9 82 1b a2 13 8e 00 d6 2c 00 d6:....VY..B...V,.V
+>01350 10 fb 8d 01 d6 98 48 a0 00 a2 1f 8e 00 d6 2c 00:....V.h..B...V,.
+>01360 d6 10 fb ad 01 d6 99 00 1b c8 c0 28 90 ed 68 48:V..M.V...H.(.MHh
+>01370 a8 18 b9 9b 1b 69 08 a2 12 8e 00 d6 2c 00 d6 10:H.Y..I.B...V,.V.
+>01380 fb 8d 01 d6 b9 82 1b a2 13 8e 00 d6 2c 00 d6 10:...VY..B...V,.V.
+>01390 fb 8d 01 d6 a0 00 a2 1f 8e 00 d6 2c 00 d6 10 fb:...V..B...V,.V..
+>013a0 ad 01 d6 99 28 1b c8 c0 28 90 ed 68 a8 60 98 48:M.V.(.H.(.MHH..h
+>013b0 a9 04 ea ea 18 79 69 1b 8d d0 13 69 d0 8d d9 13:I.JJ.YI..P.IP.Y.
+>013c0 b9 50 1b 8d cf 13 8d d8 13 a2 00 bd 00 1b 9d 00:Yp..O..X.B......
+>013d0 08 bc 28 1b b9 b4 1b 9d 00 d8 e8 e0 28 90 ec 68:..(.YT...XH.(.LH
+>013e0 a8 60 
+
+>1400  bd 07 01 a2  0f dd 00 16  f0 19 b0 03  ca 10 f6 ae
+>1410  fb 1b e0 19  90 02 a0 00  20 35 13 20  ae 13 c8 c0
+>1420  19 90 f5 4c                                         
+>1600 6a 81 82 c4 c5 c6 c7 c8 c9 ca cb cc cd ce e1 fc
+
+routine to retrieve 40 bytes from VDC
+routine to retrieve left-half of 80 column text/colors of a specified line
+routine to store text/colors(translated) to VIC
+copy VDC left hand screen to VIC screen
+
+ldx #0
+-
+lda 1B00,x
+sta 0800,x
+ldy 1b28,x
+lda 1bb4,y
+sta d800,x
+inx
+cpx #$28
+bcc -
+
+1B00-1B27 40 characters for comparison
+1B28-1B4F 40 attributes for comparison
+1B50-1B68 [0..24] 40x multiplier low byte 
+1B69-1B81 [0..24] 40x multiplier high byte
+1B82-1B9A [0..24] 80x multiplier low byte 
+1B9B-1BB3 [0..24] 80x multiplier high byte
+1BB4-1BC3 VDC to VICII color 00 0c 06 0e 05 0d 0b 03 02 0a 08 04 09 07 0f 01
+1BC4 reg/value pairs 00 3f 01 28 02 36 16 89 19 57 1b 28 0c 00 0d 28
+
+1BFB last line
+
+1BFC last charset (high of 241)
+   0 = upper/graphics
+ 128 = lower/upper
+
+1BFD last graphic mode
+
+1BFE last speed
+
+1BFF mode
+   0 = off
+ 128 = on
+
+ROM for VDC
+  CDCA-CDE5 write/read
+  CDCA - write 1F
+  CDCC - write .X
+  CDD8 - read 1F
+  CDDA - read .X
+
+SYS DEC("CDCC"),V,R
+.C:cdca  A2 1F       LDX #$1F
+.C:cdcc  8E 00 D6    STX $D600
+.C:cdcf  2C 00 D6    BIT $D600
+.C:cdd2  10 FB       BPL $CDCF
+.C:cdd4  8D 01 D6    STA $D601
+.C:cdd7  60          RTS
+
+SYS DEC("CDDA"),,R:RREG V
+.C:cdd8  A2 1F       LDX #$1F
+.C:cdda  8E 00 D6    STX $D600
+.C:cddd  2C 00 D6    BIT $D600
+.C:cde0  10 FB       BPL $CDDD
+.C:cde2  AD 01 D6    LDA $D601
+.C:cde5  60          RTS
+
+(C:$c260) h 4000 ffff ad 00 d6
+82ed PEN() - light pen x, y, col, row, trigger value
+e17e (e16e) VIC-II setup, also VDC, tests VDC revision (0, non-zero) which set of values to copy from E2F8 table
+(C:$c260) h 4000 ffff ad 01 d6
+6a38 COLOR 5,x set foreground color x-1, translated from commodore colors to RGB
+81e3 RCLR - no wait !! (81de)
+cde2 read register CDDA
+(C:$c260) h 4000 ffff ae 00 d6
+(C:$c260) h 4000 ffff ae 01 d6
+(C:$c260) h 4000 ffff ac 00 d6
+(C:$c260) h 4000 ffff ac 01 d6
+82e7 PEN()
+(C:$c260) h 4000 ffff 8c 00 d6
+82e4 PEN()
+e1e6 setup VDC
+fc6b patch setup registers - register 0 = 7f, continue e1dc (PAL)
+(C:$c260) h 4000 ffff 8d 00 d6
+6a35 COLOR 5,x set foreground color x-1
+81e0 RCLR(5) - note translated from RGB to commodore colors
+(C:$c260) h 4000 ffff 8e 00 d6
+cdcc write register
+cdda read register
+(C:$c260) h 4000 ffff 8c 01 d6
+(C:$c260) h 4000 ffff 8d 01 d6
+6a40 COLOR 5,x set foreground color x-1
+cdd4 write register
+e1e9 setup VDC
+fc6e patch VDC for PAL
+(C:$c260) h 4000 ffff 8e 01 d6
+(C:$c260) h 4000 ffff 2c 00 d6
+c543 block copy (scroll line) - set count register
+cdcf write register
+cddd read register CDDA
+(C:$c262) h 4000 ffff 20 ca cd
+c4eb clear line text
+c52d clear line attribute
+cc51 put char to screen (color to attribute address)
+cd8e set screen color
+cda9 turn cursor on
+ce2a copy chargen
+ce34 copy chargen
+(C:$c262) h 4000 ffff 20 cc cd
+c443 set fill mode - move screen line
+c46b move screen line
+c471 move screen line
+c481 move screen line
+c48d move screen line (attributes)
+c493 move screen line (attributes)
+c49e move screen line (attributes)
+c4cd clear line
+c4e1 clear line
+c4e6 clear line
+c516 clear line (attributes)
+c51b clear line (attributes)
+c540 clear line (attributes)
+cd67 set cursor position
+cdf1 set screen address offset
+ce04 set attributes address offset
+ce18 copy chargen
+ce1e copy chargen
+(C:$c262) h 4000 ffff 20 d8 cd
+cb68 get screen color
+cb70 get screen char
+cd7b set screen color
+(C:$c262) h 4000 ffff 20 da cd
+c43e set copy mode - move screen line
+c4c8 clear line - setting fill mode
+c54a block fill, until done
+c554 block fill, until done
+cb41 Esc-r screen reverse
+cb4a Esc-n screen normal
+(C:$c262) h 4000 ffff 4c ca cd
+cc58 put char to screen (text to screen address)
+(C:$c262) h 4000 ffff 4c cc cd
+cb4f Esc-n screen normal
+cd6c position cursor
+cd96 set screen color
+cdb0 turn cursor on
+cdf6 set screen address
+ce09 set color address
+(C:$c262) h 4000 ffff 4c d8 cd
+(C:$c262) h 4000 ffff 4c da cd
+
+sorted...
+6a35 COLOR 5,x set foreground color x-1
+6a38 COLOR 5,x set foreground color x-1, translated from commodore colors to RGB
+6a40 COLOR 5,x set foreground color x-1
+
+81e0 RCLR(5) - note translated from RGB to commodore colors
+81e3 RCLR - no wait !! (81de)
+82e4 PEN()
+82e7 PEN()
+82ed PEN() - light pen x, y, col, row, trigger value
+
+c43e set copy mode - move screen line
+c443 set fill mode - move screen line
+c46b move screen line
+c471 move screen line
+c481 move screen line
+c48d move screen line (attributes)
+c493 move screen line (attributes)
+c49e move screen line (attributes)
+c4c8 clear line - setting fill mode
+c4cd clear line
+c4e1 clear line
+c4e6 clear line
+c4eb clear line text
+c516 clear line (attributes)
+c51b clear line (attributes)
+c52d clear line attribute
+c540 clear line (attributes)
+c543 block copy (scroll line) - set count register
+c54a block fill, until done
+c554 block fill, until done
+cb41 Esc-r screen reverse
+cb4a Esc-n screen normal
+cb4f Esc-n screen normal
+cb68 get screen color
+cb70 get screen char
+cc51 put char to screen (color to attribute address)
+cc58 put char to screen (text to screen address)
+cd67 set cursor position
+cd6c position cursor
+cd7b set screen color
+cd8e set screen color
+cd96 set screen color
+cda9 turn cursor on
+cdb0 turn cursor on
+cdcc write register
+cdcf write register
+cdd4 write register
+cdda read register
+cddd read register CDDA
+cde2 read register CDDA
+cdf1 set screen address offset
+cdf6 set screen address
+ce04 set attributes address offset
+ce09 set color address
+ce18 copy chargen
+ce1e copy chargen
+ce2a copy chargen
+ce34 copy chargen
+
+e17e (e16e) VIC-II setup, also VDC, tests VDC revision (0, non-zero) which set of values to copy from E2F8 table
+e1e6 setup VDC
+e1e9 setup VDC
+
+fc6b patch setup registers - register 0 = 7f, continue e1dc (PAL)
+fc6e patch VDC for PAL
