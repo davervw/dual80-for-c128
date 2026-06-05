@@ -42,15 +42,12 @@ start_80dual: ;--------------------------------------------------------------
 +   lda #$00
     sta linenum
     sei
-    ldx #$14 ; new irq high
+    lda #<newirq
+    ldx #>newirq
     sta $0314 ; irq vector low
     stx $0315 ; irq vector high
     cli
     jmp display_credit
-    brk
-    brk
-    brk
-    brk
 
 read_line: ;-----------------------------------------------------------------
     lda mult80high,y
@@ -112,8 +109,6 @@ write_line: ;----------------------------------------------------------------
     tya ; save y - line number
     pha
     lda #$04 ; default vicii screen page
-    nop
-    nop
     clc
     adc mult40high,y
     sta store_screen+2 ; self-modifying code
@@ -137,7 +132,6 @@ store_color: sta $d800,x ; vicii color memory (address self-modified)
     tay ; restore y - line number
     rts
 
-* = $1400
 newirq: ;--------------------------------------------------------------------
     ; check if rom is busy with vdc from avoid_pages lookup table
     lda $0107,x ; get high byte irq return address off stack
@@ -157,8 +151,7 @@ newirq: ;--------------------------------------------------------------------
     tya
     adc #$05
     sta compare_line_count+1 ; self-modifying code
--   nop
-    jsr read_line ; read left-side (40 columns) of vdc screen/attrs at line y
+-   jsr read_line ; read left-side (40 columns) of vdc screen/attrs at line y
     jsr write_line ; write to vic-ii screen/colors at line y
     iny
 compare_line_count: cpy #$05 ; for 5 lines - self-modifying code
@@ -194,7 +187,7 @@ divide_done:
 
 ; check if on hidden part of VDC screen
     cmp #40         ; on left?
-exit_irq_halfway: ; beq branch was too far, so branch again, bcs scenario covers eq as well
+exit_irq_halfway:   ; beq branch was too far, so branch again, bcs scenario covers eq as well
     bcs exit_irq    ; cursor not on VIC side
     lda linenum
     sec
@@ -238,13 +231,6 @@ store_reverse:
 exit_irq:
     jmp $fa65 ; rom irq handler (normally in $0314/5 vector)
 
-; DATA ----------------------------------------------------------------------
-
-* = $1600
-avoid_pages: 
-    !byte $6a,$81,$82,$c4,$c5,$c6,$c7,$c8,$c9,$ca,$cb,$cc,$cd,$ce,$e1,$fc
-
-* = $1a7d
 display_credit:
     jsr $FF7D ; kernal print embedded string, nul terminated, followed by more code
         !byte $0d,$0d
@@ -253,7 +239,11 @@ display_credit:
         !byte 0
     rts ; more code ... done
 
-* = $1b00
+; DATA ----------------------------------------------------------------------
+
+avoid_pages: 
+    !byte $6a,$81,$82,$c4,$c5,$c6,$c7,$c8,$c9,$ca,$cb,$cc,$cd,$ce,$e1,$fc
+
 screen_line:
     !byte 0,0,0,0,0,0,0,0,0,0
     !byte 0,0,0,0,0,0,0,0,0,0
@@ -310,13 +300,9 @@ vdc_init: ; // https://techwithdave.davevw.com/2023/12/commodore-128-vdc-referen
     !byte $15,$28 ; atribute address low (+40 characters to skip left side)
     !byte $ff,$ff ; end of table marker
 
-*=$1BF9:
 col: !byte 0
 row: !byte 0
 linenum: !byte 0
-
-*=$1BFF
-ending: !byte 00
 
 finish_80dual:
 
