@@ -40,8 +40,6 @@ start_80dual: ;--------------------------------------------------------------
     iny
     bne --
 +   lda #$00
-    sta $d020 ; VICII background (black)
-    sta $d021 ; VICII border (black)
     sta linenum
     sei
     ldx #$14 ; new irq high
@@ -127,7 +125,9 @@ write_line: ;----------------------------------------------------------------
     ldx #$00
 -   lda screen_line,x
 store_screen: sta $0400,x ; vicii screen memory (address self-modified)
-    ldy attrs_line,x
+    lda attrs_line,x
+    and #15
+    tay
     lda vdc_to_vicii_color,y
 store_color: sta $d800,x ; vicii color memory (address self-modified)
     inx
@@ -201,6 +201,20 @@ exit_irq_halfway: ; beq branch was too far, so branch again, bcs scenario covers
     sbc row
     cmp #$06
     bcs exit_irq    ; cursor's line not drawn this cycle
+
+; enforce background color
+    ldx #26 ; fore/back color
+    stx vdc_register
+-   bit vdc_register
+    bpl -
+    lda vdc_value
+    and #15
+    tay
+    lda vdc_to_vicii_color,y
+    sta $d020 ; VICII background (black)
+    sta $d021 ; VICII border (black)
+
+; one more check for cursor
     lda $7f ; BASIC run flag (0x80=running, 0x40=loading, 0=READY) // TODO: need INPUT flag to display cursor
     bne exit_irq    ; do not display cursor when BASIC running
 
@@ -281,7 +295,8 @@ mult80high:
     !byte $06,$06,$06,$07,$07
 
 vdc_to_vicii_color:
-    !byte $00,$0c,$06,$0e,$05,$0d,$0b,$03,$02,$0a,$08,$04,$09,$07,$0f,$01
+    !byte $00,$0b,$06,$0e,$05,$0d,$0f,$03,$08,$02,$0a,$04,$09,$07,$0c,$01 ; revised mapping
+    ;!byte $00,$0c,$06,$0e,$05,$0d,$0b,$03,$02,$0a,$08,$04,$09,$07,$0f,$01 ; rom mapping
 
 vdc_init: ; // https://techwithdave.davevw.com/2023/12/commodore-128-vdc-reference.html
     !byte $00,$3f ; horizontal total (was 126/127)
