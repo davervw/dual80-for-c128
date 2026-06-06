@@ -7,305 +7,311 @@
      5                          ; https://davevw.com
      6                          ; https://github.com/davervw/dual80-for-c128
      7                          ; MIT LICENSE
-     8                          ;============================================================================
-     9                          
-    10                          ; Description
-    11                          ; 
-    12                          ; demo to extend VDC 80 columns across VIC-II (left) and VDC (right)
-    13                          ; making for a wider 80 column screen -- extending the screen across both monitors
-    14                          ;
-    15                          ; Design
-    16                          ;
-    17                          ; * initializes VDC to 40 column mode, skipping 40 characters so is right side
-    18                          ; * sets up IRQ
-    19                          ; * new irq copies next 5 lines x 40 columns from VDC RAM to VIC-II screen
-    20                          ;   and inverts on VIC-II screen where VDC cursor is pointing
-    21                          ;
-    22                          ; Status = ALPHA, demonstrable, testable but known bugs/limitations
-    23                          
-    24                          vdc_register = $d600
-    25                          vdc_value    = $d601
+     8                          ;
+     9                          ; Contributors:
+    10                          ;   Nath Eric provided VDC 8563 Ver. 1 register updates that work with RGB2HDMI
+    11                          ;============================================================================
+    12                          
+    13                          ; Description
+    14                          ; 
+    15                          ; demo to extend VDC 80 columns across VIC-II (left) and VDC (right)
+    16                          ; making for a wider 80 column screen -- extending the screen across both monitors
+    17                          ;
+    18                          ; Design
+    19                          ;
+    20                          ; * initializes VDC to 40 column mode, skipping 40 characters so is right side
+    21                          ; * sets up IRQ
+    22                          ; * new irq copies next 5 lines x 40 columns from VDC RAM to VIC-II screen
+    23                          ;   and inverts on VIC-II screen where VDC cursor is pointing
+    24                          ;
+    25                          ; Status = ALPHA, demonstrable, testable but known bugs/limitations
     26                          
-    27                          * = $1300 ; fits in an available RAM block on C128
-    28                          ; recommended to configure using with BOOT sector (e.g. see 1571 demo disk)
+    27                          vdc_register = $d600
+    28                          vdc_value    = $d601
     29                          
-    30                          start_80dual: ;--------------------------------------------------------------
-    31  1300 a000                   ldy #$00
-    32  1302 bec515             --  ldx vdc_init,y
-    33  1305 3012                   bmi +
-    34  1307 b9c615                 lda vdc_init+1,y
-    35  130a 8e00d6                 stx vdc_register
-    36  130d 2c00d6             -   bit vdc_register
-    37  1310 10fb                   bpl -
-    38  1312 8d01d6                 sta vdc_value
-    39  1315 c8                     iny
-    40  1316 c8                     iny
-    41  1317 d0e9                   bne --
-    42  1319 a900               +   lda #$00
-    43  131b 8ddb15                 sta linenum
-    44  131e 78                     sei
-    45  131f a9db                   lda #<newirq
-    46  1321 a213                   ldx #>newirq
-    47  1323 8d1403                 sta $0314 ; irq vector low
-    48  1326 8e1503                 stx $0315 ; irq vector high
-    49  1329 58                     cli
-    50  132a 4c8c14                 jmp display_credit
-    51                          
-    52                          read_line: ;-----------------------------------------------------------------
-    53  132d b99c15                 lda mult80high,y
-    54  1330 a212                   ldx #$12
-    55  1332 8e00d6                 stx vdc_register
-    56  1335 2c00d6             -   bit vdc_register
-    57  1338 10fb                   bpl -
-    58  133a 8d01d6                 sta vdc_value
-    59  133d b98315                 lda mult80low,y
-    60  1340 a213                   ldx #$13
-    61  1342 8e00d6                 stx vdc_register
-    62  1345 2c00d6             -   bit vdc_register
-    63  1348 10fb                   bpl -
-    64  134a 8d01d6                 sta vdc_value
-    65  134d 98                     tya
-    66  134e 48                     pha
-    67  134f a000                   ldy #$00
-    68  1351 a21f                   ldx #$1f
-    69  1353 8e00d6             --  stx vdc_register
-    70  1356 2c00d6             -   bit vdc_register
-    71  1359 10fb                   bpl -
-    72  135b ad01d6                 lda vdc_value
-    73  135e 990115                 sta screen_line,y
-    74  1361 c8                     iny
-    75  1362 c028                   cpy #40 ; for 40 characters
-    76  1364 90ed                   bcc -- ; repeat
-    77  1366 68                     pla
-    78  1367 48                     pha
-    79  1368 a8                     tay
-    80  1369 18                     clc
-    81  136a b99c15                 lda mult80high,y
-    82  136d 6908                   adc #$08
-    83  136f a212                   ldx #$12
-    84  1371 8e00d6                 stx vdc_register
-    85  1374 2c00d6             -   bit vdc_register
-    86  1377 10fb                   bpl -
-    87  1379 8d01d6                 sta vdc_value
-    88  137c b98315                 lda mult80low,y
-    89  137f a213                   ldx #$13
-    90  1381 8e00d6                 stx vdc_register
-    91  1384 2c00d6             -   bit vdc_register
-    92  1387 10fb                   bpl -
-    93  1389 8d01d6                 sta vdc_value
-    94  138c a000                   ldy #$00
-    95  138e a21f                   ldx #$1f
-    96  1390 8e00d6             --  stx vdc_register
-    97  1393 2c00d6             -   bit vdc_register
-    98  1396 10fb                   bpl -
-    99  1398 ad01d6                 lda vdc_value
-   100  139b 992915                 sta attrs_line,y
-   101  139e c8                     iny
-   102  139f c028                   cpy #40 ; for 40 characters
-   103  13a1 90ed                   bcc -- ; repeat
-   104  13a3 68                     pla
-   105  13a4 a8                     tay
-   106  13a5 60                     rts
-   107                          
-   108                          write_line: ;----------------------------------------------------------------
-   109  13a6 98                     tya ; save y - line number
-   110  13a7 48                     pha
-   111  13a8 a904                   lda #$04 ; default vicii screen page
-   112  13aa 18                     clc
-   113  13ab 796a15                 adc mult40high,y
-   114  13ae 8dc613                 sta store_screen+2 ; self-modifying code
-   115  13b1 69d4                   adc #$d4 ; add more to get to color RAM page
-   116  13b3 8dd213                 sta store_color+2 ; self-modifying code
-   117  13b6 b95115                 lda mult40low,y
-   118  13b9 8dc513                 sta store_screen+1 ; self-modifying code
-   119  13bc 8dd113                 sta store_color+1 ; self-modifying code
-   120  13bf a200                   ldx #$00
-   121  13c1 bd0115             -   lda screen_line,x
-   122  13c4 9d0004             store_screen: sta $0400,x ; vicii screen memory (address self-modified)
-   123  13c7 bd2915                 lda attrs_line,x
-   124  13ca 290f                   and #15
-   125  13cc a8                     tay
-   126  13cd b9b515                 lda vdc_to_vicii_color,y
-   127  13d0 9d00d8             store_color: sta $d800,x ; vicii color memory (address self-modified)
-   128  13d3 e8                     inx
-   129  13d4 e028                   cpx #40 ; for 40 characters
-   130  13d6 90e9                   bcc - ; repeat
-   131  13d8 68                     pla
-   132  13d9 a8                     tay ; restore y - line number
-   133  13da 60                     rts
-   134                          
-   135                          newirq: ;--------------------------------------------------------------------
-   136                              ; check if rom is busy with vdc from avoid_pages lookup table
-   137  13db bd0701                 lda $0107,x ; get high byte irq return address off stack
-   138  13de a20f                   ldx #$0f ; point to last one => length(avoid_pages)-1
-   139  13e0 ddf114             -   cmp avoid_pages,x
-   140  13e3 f057                   beq exit_irq_halfway
-   141  13e5 b003                   bcs +
-   142  13e7 ca                     dex
-   143  13e8 10f6                   bpl - ; repeat 
-   144                          
-   145                              ; copy 5 lines from VDC to VIC on each IRQ
-   146  13ea acdb15             +   ldy linenum
-   147  13ed c015                   cpy #$15
-   148  13ef 9002                   bcc +
-   149  13f1 a000                   ldy #$00
-   150  13f3 18                 +   clc
-   151  13f4 98                     tya
-   152  13f5 6905                   adc #$05
-   153  13f7 8d0214                 sta compare_line_count+1 ; self-modifying code
-   154  13fa 202d13             -   jsr read_line ; read left-side (40 columns) of vdc screen/attrs at line y
-   155  13fd 20a613                 jsr write_line ; write to vic-ii screen/colors at line y
-   156  1400 c8                     iny
-   157  1401 c005               compare_line_count: cpy #$05 ; for 5 lines - self-modifying code
-   158  1403 90f5                   bcc - ; repeat
-   159  1405 8cdb15                 sty linenum
-   160                          
-   161                              ; retrive cursor position
-   162  1408 a20e                   ldx #$0e ; cursor high position/offset
-   163  140a 8e00d6                 stx vdc_register
-   164  140d 2c00d6             -   bit vdc_register
-   165  1410 10fb                   bpl -
-   166  1412 ac01d6                 ldy vdc_value
-   167  1415 e8                     inx ; cursor low position/offset
-   168  1416 8e00d6                 stx vdc_register
-   169  1419 2c00d6             -   bit vdc_register
-   170  141c 10fb                   bpl -
-   171  141e ad01d6                 lda vdc_value
-   172                          
-   173                          ; divide cursor position by 80 to get row/col
-   174  1421 a200                   ldx #$00        ; initialize row 0
-   175  1423 c000               -   cpy #$00
-   176  1425 d004                   bne +           ; can subtract
-   177  1427 c950                   cmp #$50
-   178  1429 9009                   bcc divide_done ; cannot subtract
-   179  142b e8                 +   inx
-   180  142c e950                   sbc #$50        ; one row down
-   181  142e b0f3                   bcs -           ; no borrow, repeat
-   182  1430 88                     dey             ; borrow takes out of high byte
-   183  1431 4c2314                 jmp -           ; repeat
-   184                          divide_done:
-   185  1434 8dd915                 sta col
-   186  1437 8eda15                 stx row
-   187                          
-   188                          ; check if on hidden part of VDC screen
-   189  143a c928                   cmp #40         ; on left?
-   190                          exit_irq_halfway:   ; beq branch was too far, so branch again, bcs scenario covers eq as well
-   191  143c b04b                   bcs exit_irq    ; cursor not on VIC side
-   192  143e addb15                 lda linenum
-   193  1441 38                     sec
-   194  1442 edda15                 sbc row
-   195  1445 c906                   cmp #$06
-   196  1447 b040                   bcs exit_irq    ; cursor's line not drawn this cycle
-   197                          
-   198                          ; enforce background color
-   199  1449 a21a                   ldx #26 ; fore/back color
-   200  144b 8e00d6                 stx vdc_register
-   201  144e 2c00d6             -   bit vdc_register
-   202  1451 10fb                   bpl -
-   203  1453 ad01d6                 lda vdc_value
-   204  1456 290f                   and #15
-   205  1458 a8                     tay
-   206  1459 b9b515                 lda vdc_to_vicii_color,y
-   207  145c 8d20d0                 sta $d020 ; VICII background (black)
-   208  145f 8d21d0                 sta $d021 ; VICII border (black)
-   209                          
-   210                          ; one more check for cursor
-   211  1462 a57f                   lda $7f ; BASIC run flag (0x80=running, 0x40=loading, 0=READY) // TODO: need INPUT flag to display cursor
-   212  1464 d023                   bne exit_irq    ; do not display cursor when BASIC running
-   213                          
-   214                          ; inverse cursor on VIC-II screen to mirror hidden VDC cursor (off screen)
-   215  1466 aeda15                 ldx row
-   216  1469 bd6a15                 lda mult40high,x
-   217  146c 18                     clc
-   218  146d 6904                   adc #$04
-   219  146f 8d8514                 sta fetch_reverse+2 ; self-modifying code
-   220  1472 8d8814                 sta store_reverse+2 ; self-modifying code
-   221  1475 bd5115                 lda mult40low,x
-   222  1478 8d8414                 sta fetch_reverse+1 ; self-modifying code
-   223  147b 8d8714                 sta store_reverse+1 ; self-modifying code
-   224  147e acd915                 ldy col
-   225  1481 a980                   lda #$80 ; reverse mask
-   226                          fetch_reverse:
-   227  1483 590004                 eor $0400,y ; fetch/reverse from screen memory (address self-modified)
-   228                          store_reverse:
-   229  1486 990004                 sta $0400,y ; store back to screen memory (address self-modified)
-   230                          
-   231                          exit_irq:
-   232  1489 4c65fa                 jmp $fa65 ; rom irq handler (normally in $0314/5 vector)
+    30                          * = $1300 ; fits in an available RAM block on C128
+    31                          ; recommended to configure using with BOOT sector (e.g. see 1571 demo disk)
+    32                          
+    33                          start_80dual: ;--------------------------------------------------------------
+    34  1300 a000                   ldy #$00
+    35  1302 bec515             --  ldx vdc_init,y
+    36  1305 3012                   bmi +
+    37  1307 b9c615                 lda vdc_init+1,y
+    38  130a 8e00d6                 stx vdc_register
+    39  130d 2c00d6             -   bit vdc_register
+    40  1310 10fb                   bpl -
+    41  1312 8d01d6                 sta vdc_value
+    42  1315 c8                     iny
+    43  1316 c8                     iny
+    44  1317 d0e9                   bne --
+    45  1319 a900               +   lda #$00
+    46  131b 8ddf15                 sta linenum
+    47  131e 78                     sei
+    48  131f a9db                   lda #<newirq
+    49  1321 a213                   ldx #>newirq
+    50  1323 8d1403                 sta $0314 ; irq vector low
+    51  1326 8e1503                 stx $0315 ; irq vector high
+    52  1329 58                     cli
+    53  132a 4c8c14                 jmp display_credit
+    54                          
+    55                          read_line: ;-----------------------------------------------------------------
+    56  132d b99c15                 lda mult80high,y
+    57  1330 a212                   ldx #$12
+    58  1332 8e00d6                 stx vdc_register
+    59  1335 2c00d6             -   bit vdc_register
+    60  1338 10fb                   bpl -
+    61  133a 8d01d6                 sta vdc_value
+    62  133d b98315                 lda mult80low,y
+    63  1340 a213                   ldx #$13
+    64  1342 8e00d6                 stx vdc_register
+    65  1345 2c00d6             -   bit vdc_register
+    66  1348 10fb                   bpl -
+    67  134a 8d01d6                 sta vdc_value
+    68  134d 98                     tya
+    69  134e 48                     pha
+    70  134f a000                   ldy #$00
+    71  1351 a21f                   ldx #$1f
+    72  1353 8e00d6             --  stx vdc_register
+    73  1356 2c00d6             -   bit vdc_register
+    74  1359 10fb                   bpl -
+    75  135b ad01d6                 lda vdc_value
+    76  135e 990115                 sta screen_line,y
+    77  1361 c8                     iny
+    78  1362 c028                   cpy #40 ; for 40 characters
+    79  1364 90ed                   bcc -- ; repeat
+    80  1366 68                     pla
+    81  1367 48                     pha
+    82  1368 a8                     tay
+    83  1369 18                     clc
+    84  136a b99c15                 lda mult80high,y
+    85  136d 6908                   adc #$08 ; attributes address high
+    86  136f a212                   ldx #$12 ; update address high
+    87  1371 8e00d6                 stx vdc_register
+    88  1374 2c00d6             -   bit vdc_register
+    89  1377 10fb                   bpl -
+    90  1379 8d01d6                 sta vdc_value
+    91  137c b98315                 lda mult80low,y
+    92  137f a213                   ldx #$13 ; update address low
+    93  1381 8e00d6                 stx vdc_register
+    94  1384 2c00d6             -   bit vdc_register
+    95  1387 10fb                   bpl -
+    96  1389 8d01d6                 sta vdc_value
+    97  138c a000                   ldy #$00
+    98  138e a21f                   ldx #$1f ; data register
+    99  1390 8e00d6             --  stx vdc_register
+   100  1393 2c00d6             -   bit vdc_register
+   101  1396 10fb                   bpl -
+   102  1398 ad01d6                 lda vdc_value
+   103  139b 992915                 sta attrs_line,y
+   104  139e c8                     iny
+   105  139f c028                   cpy #40 ; for 40 characters
+   106  13a1 90ed                   bcc -- ; repeat
+   107  13a3 68                     pla
+   108  13a4 a8                     tay
+   109  13a5 60                     rts
+   110                          
+   111                          write_line: ;----------------------------------------------------------------
+   112  13a6 98                     tya ; save y - line number
+   113  13a7 48                     pha
+   114  13a8 a904                   lda #$04 ; default vicii screen page
+   115  13aa 18                     clc
+   116  13ab 796a15                 adc mult40high,y
+   117  13ae 8dc613                 sta store_screen+2 ; self-modifying code
+   118  13b1 69d4                   adc #$d4 ; add more to get to color RAM page
+   119  13b3 8dd213                 sta store_color+2 ; self-modifying code
+   120  13b6 b95115                 lda mult40low,y
+   121  13b9 8dc513                 sta store_screen+1 ; self-modifying code
+   122  13bc 8dd113                 sta store_color+1 ; self-modifying code
+   123  13bf a200                   ldx #$00
+   124  13c1 bd0115             -   lda screen_line,x
+   125  13c4 9d0004             store_screen: sta $0400,x ; vicii screen memory (address self-modified)
+   126  13c7 bd2915                 lda attrs_line,x
+   127  13ca 290f                   and #15
+   128  13cc a8                     tay
+   129  13cd b9b515                 lda vdc_to_vicii_color,y
+   130  13d0 9d00d8             store_color: sta $d800,x ; vicii color memory (address self-modified)
+   131  13d3 e8                     inx
+   132  13d4 e028                   cpx #40 ; for 40 characters
+   133  13d6 90e9                   bcc - ; repeat
+   134  13d8 68                     pla
+   135  13d9 a8                     tay ; restore y - line number
+   136  13da 60                     rts
+   137                          
+   138                          newirq: ;--------------------------------------------------------------------
+   139                              ; check if rom is busy with vdc from avoid_pages lookup table
+   140  13db bd0701                 lda $0107,x ; get high byte irq return address off stack
+   141  13de a20f                   ldx #$0f ; point to last one => length(avoid_pages)-1
+   142  13e0 ddf114             -   cmp avoid_pages,x
+   143  13e3 f057                   beq exit_irq_halfway
+   144  13e5 b003                   bcs +
+   145  13e7 ca                     dex
+   146  13e8 10f6                   bpl - ; repeat 
+   147                          
+   148                              ; copy 5 lines from VDC to VIC on each IRQ
+   149  13ea acdf15             +   ldy linenum
+   150  13ed c015                   cpy #$15
+   151  13ef 9002                   bcc +
+   152  13f1 a000                   ldy #$00
+   153  13f3 18                 +   clc
+   154  13f4 98                     tya
+   155  13f5 6905                   adc #$05
+   156  13f7 8d0214                 sta compare_line_count+1 ; self-modifying code
+   157  13fa 202d13             -   jsr read_line ; read left-side (40 columns) of vdc screen/attrs at line y
+   158  13fd 20a613                 jsr write_line ; write to vic-ii screen/colors at line y
+   159  1400 c8                     iny
+   160  1401 c005               compare_line_count: cpy #$05 ; for 5 lines - self-modifying code
+   161  1403 90f5                   bcc - ; repeat
+   162  1405 8cdf15                 sty linenum
+   163                          
+   164                              ; retrive cursor position
+   165  1408 a20e                   ldx #$0e ; cursor high position/offset
+   166  140a 8e00d6                 stx vdc_register
+   167  140d 2c00d6             -   bit vdc_register
+   168  1410 10fb                   bpl -
+   169  1412 ac01d6                 ldy vdc_value
+   170  1415 e8                     inx ; cursor low position/offset
+   171  1416 8e00d6                 stx vdc_register
+   172  1419 2c00d6             -   bit vdc_register
+   173  141c 10fb                   bpl -
+   174  141e ad01d6                 lda vdc_value
+   175                          
+   176                          ; divide cursor position by 80 to get row/col
+   177  1421 a200                   ldx #$00        ; initialize row 0
+   178  1423 c000               -   cpy #$00
+   179  1425 d004                   bne +           ; can subtract
+   180  1427 c950                   cmp #$50
+   181  1429 9009                   bcc divide_done ; cannot subtract
+   182  142b e8                 +   inx
+   183  142c e950                   sbc #$50        ; one row down
+   184  142e b0f3                   bcs -           ; no borrow, repeat
+   185  1430 88                     dey             ; borrow takes out of high byte
+   186  1431 4c2314                 jmp -           ; repeat
+   187                          divide_done:
+   188  1434 8ddd15                 sta col
+   189  1437 8ede15                 stx row
+   190                          
+   191                          ; check if on hidden part of VDC screen
+   192  143a c928                   cmp #40         ; on left?
+   193                          exit_irq_halfway:   ; beq branch was too far, so branch again, bcs scenario covers eq as well
+   194  143c b04b                   bcs exit_irq    ; cursor not on VIC side
+   195  143e addf15                 lda linenum
+   196  1441 38                     sec
+   197  1442 edde15                 sbc row
+   198  1445 c906                   cmp #$06
+   199  1447 b040                   bcs exit_irq    ; cursor's line not drawn this cycle
+   200                          
+   201                          ; enforce background color
+   202  1449 a21a                   ldx #26 ; fore/back color
+   203  144b 8e00d6                 stx vdc_register
+   204  144e 2c00d6             -   bit vdc_register
+   205  1451 10fb                   bpl -
+   206  1453 ad01d6                 lda vdc_value
+   207  1456 290f                   and #15
+   208  1458 a8                     tay
+   209  1459 b9b515                 lda vdc_to_vicii_color,y
+   210  145c 8d20d0                 sta $d020 ; VICII background (black)
+   211  145f 8d21d0                 sta $d021 ; VICII border (black)
+   212                          
+   213                          ; one more check for cursor
+   214  1462 a57f                   lda $7f ; BASIC run flag (0x80=running, 0x40=loading, 0=READY) // TODO: need INPUT flag to display cursor
+   215  1464 d023                   bne exit_irq    ; do not display cursor when BASIC running
+   216                          
+   217                          ; inverse cursor on VIC-II screen to mirror hidden VDC cursor (off screen)
+   218  1466 aede15                 ldx row
+   219  1469 bd6a15                 lda mult40high,x
+   220  146c 18                     clc
+   221  146d 6904                   adc #$04
+   222  146f 8d8514                 sta fetch_reverse+2 ; self-modifying code
+   223  1472 8d8814                 sta store_reverse+2 ; self-modifying code
+   224  1475 bd5115                 lda mult40low,x
+   225  1478 8d8414                 sta fetch_reverse+1 ; self-modifying code
+   226  147b 8d8714                 sta store_reverse+1 ; self-modifying code
+   227  147e acdd15                 ldy col
+   228  1481 a980                   lda #$80 ; reverse mask
+   229                          fetch_reverse:
+   230  1483 590004                 eor $0400,y ; fetch/reverse from screen memory (address self-modified)
+   231                          store_reverse:
+   232  1486 990004                 sta $0400,y ; store back to screen memory (address self-modified)
    233                          
-   234                          display_credit:
-   235  148c 207dff                 jsr $FF7D ; kernal print embedded string, nul terminated, followed by more code
-   236  148f 0d0d                       !byte $0d,$0d
-   237  1491 38304455414c202d...        !text "80DUAL - EXTENDED C128 SCREENS",$0d
-   238  14b0 434f505952494748...        !text "COPYRIGHT (C) 2026 DAVID VAN WAGNER     DAVEVW.COM  MIT LICENSE"
-   239  14ef 00                         !byte 0
-   240  14f0 60                     rts ; more code ... done
-   241                          
-   242                          ; DATA ----------------------------------------------------------------------
-   243                          
-   244                          avoid_pages: 
-   245  14f1 6a8182c4c5c6c7c8...    !byte $6a,$81,$82,$c4,$c5,$c6,$c7,$c8,$c9,$ca,$cb,$cc,$cd,$ce,$e1,$fc
+   234                          exit_irq:
+   235  1489 4c65fa                 jmp $fa65 ; rom irq handler (normally in $0314/5 vector)
+   236                          
+   237                          display_credit:
+   238  148c 207dff                 jsr $FF7D ; kernal print embedded string, nul terminated, followed by more code
+   239  148f 0d0d                       !byte $0d,$0d
+   240  1491 38304455414c202d...        !text "80DUAL - EXTENDED C128 SCREENS",$0d
+   241  14b0 434f505952494748...        !text "COPYRIGHT (C) 2026 DAVID VAN WAGNER     DAVEVW.COM  MIT LICENSE"
+   242  14ef 00                         !byte 0
+   243  14f0 60                     rts ; more code ... done
+   244                          
+   245                          ; DATA ----------------------------------------------------------------------
    246                          
-   247                          screen_line:
-   248  1501 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
-   249  150b 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
-   250  1515 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
-   251  151f 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
-   252                          
-   253                          attrs_line:
-   254  1529 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
-   255  1533 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
-   256  153d 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
-   257  1547 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
-   258                          
-   259                          mult40low:
-   260  1551 00285078a0             !byte $00,$28,$50,$78,$a0
-   261  1556 c8f0184068             !byte $c8,$f0,$18,$40,$68
-   262  155b 90b8e00830             !byte $90,$b8,$e0,$08,$30
-   263  1560 5880a8d0f8             !byte $58,$80,$a8,$d0,$f8
-   264  1565 20487098c0             !byte $20,$48,$70,$98,$c0
-   265                          
-   266                          mult40high:
-   267  156a 0000000000             !byte $00,$00,$00,$00,$00
-   268  156f 0000010101             !byte $00,$00,$01,$01,$01
-   269  1574 0101010202             !byte $01,$01,$01,$02,$02
-   270  1579 0202020202             !byte $02,$02,$02,$02,$02
-   271  157e 0303030303             !byte $03,$03,$03,$03,$03
-   272                          
-   273                          mult80low:
-   274  1583 0050a0f040             !byte $00,$50,$a0,$f0,$40
-   275  1588 90e03080d0             !byte $90,$e0,$30,$80,$d0
-   276  158d 2070c01060             !byte $20,$70,$c0,$10,$60
-   277  1592 b00050a0f0             !byte $b0,$00,$50,$a0,$f0
-   278  1597 4090e03080             !byte $40,$90,$e0,$30,$80
-   279                          
-   280                          mult80high:
-   281  159c 0000000001             !byte $00,$00,$00,$00,$01
-   282  15a1 0101020202             !byte $01,$01,$02,$02,$02
-   283  15a6 0303030404             !byte $03,$03,$03,$04,$04
-   284  15ab 0405050505             !byte $04,$05,$05,$05,$05
-   285  15b0 0606060707             !byte $06,$06,$06,$07,$07
-   286                          
-   287                          vdc_to_vicii_color:
-   288  15b5 000b060e050d0f03...    !byte $00,$0b,$06,$0e,$05,$0d,$0f,$03,$08,$02,$0a,$04,$09,$07,$0c,$01 ; revised mapping
-   289                              ;!byte $00,$0c,$06,$0e,$05,$0d,$0b,$03,$02,$0a,$08,$04,$09,$07,$0f,$01 ; rom mapping
-   290                          
-   291                          vdc_init: ; // https://techwithdave.davevw.com/2023/12/commodore-128-vdc-reference.html
-   292  15c5 003f                   !byte $00,$3f ; horizontal total (was 126/127)
-   293  15c7 0128                   !byte $01,$28 ; horizontal displayed (was 80)
-   294  15c9 0236                   !byte $02,$36 ; horizontal sync position (was 102)
-   295  15cb 1689                   !byte $16,$89 ; characters displayed %10001001 (8/9, was 7/8)
-   296  15cd 1957                   !byte $19,$57 ; graph/text/etc %01010111 (set double Pixel mode - bit 4)
-   297  15cf 1b28                   !byte $1b,$28 ; addr incr per row (40, was 0) so display skips 40 characters
-   298  15d1 0c00                   !byte $0c,$00 ; display address high (unchanged)
-   299  15d3 0d28                   !byte $0d,$28 ; display address low (+40 characters to skip left side)
-   300  15d5 1528                   !byte $15,$28 ; atribute address low (+40 characters to skip left side)
-   301  15d7 ffff                   !byte $ff,$ff ; end of table marker
-   302                          
-   303  15d9 00                 col: !byte 0
-   304  15da 00                 row: !byte 0
-   305  15db 00                 linenum: !byte 0
-   306                          
-   307                          finish_80dual:
+   247                          avoid_pages: 
+   248  14f1 6a8182c4c5c6c7c8...    !byte $6a,$81,$82,$c4,$c5,$c6,$c7,$c8,$c9,$ca,$cb,$cc,$cd,$ce,$e1,$fc
+   249                          
+   250                          screen_line:
+   251  1501 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
+   252  150b 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
+   253  1515 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
+   254  151f 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
+   255                          
+   256                          attrs_line:
+   257  1529 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
+   258  1533 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
+   259  153d 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
+   260  1547 0000000000000000...    !byte 0,0,0,0,0,0,0,0,0,0
+   261                          
+   262                          mult40low:
+   263  1551 00285078a0             !byte $00,$28,$50,$78,$a0
+   264  1556 c8f0184068             !byte $c8,$f0,$18,$40,$68
+   265  155b 90b8e00830             !byte $90,$b8,$e0,$08,$30
+   266  1560 5880a8d0f8             !byte $58,$80,$a8,$d0,$f8
+   267  1565 20487098c0             !byte $20,$48,$70,$98,$c0
+   268                          
+   269                          mult40high:
+   270  156a 0000000000             !byte $00,$00,$00,$00,$00
+   271  156f 0000010101             !byte $00,$00,$01,$01,$01
+   272  1574 0101010202             !byte $01,$01,$01,$02,$02
+   273  1579 0202020202             !byte $02,$02,$02,$02,$02
+   274  157e 0303030303             !byte $03,$03,$03,$03,$03
+   275                          
+   276                          mult80low:
+   277  1583 0050a0f040             !byte $00,$50,$a0,$f0,$40
+   278  1588 90e03080d0             !byte $90,$e0,$30,$80,$d0
+   279  158d 2070c01060             !byte $20,$70,$c0,$10,$60
+   280  1592 b00050a0f0             !byte $b0,$00,$50,$a0,$f0
+   281  1597 4090e03080             !byte $40,$90,$e0,$30,$80
+   282                          
+   283                          mult80high:
+   284  159c 0000000001             !byte $00,$00,$00,$00,$01
+   285  15a1 0101020202             !byte $01,$01,$02,$02,$02
+   286  15a6 0303030404             !byte $03,$03,$03,$04,$04
+   287  15ab 0405050505             !byte $04,$05,$05,$05,$05
+   288  15b0 0606060707             !byte $06,$06,$06,$07,$07
+   289                          
+   290                          vdc_to_vicii_color:
+   291  15b5 000b060e050d0f03...    !byte $00,$0b,$06,$0e,$05,$0d,$0f,$03,$08,$02,$0a,$04,$09,$07,$0c,$01 ; revised mapping
+   292                              ;!byte $00,$0c,$06,$0e,$05,$0d,$0b,$03,$02,$0a,$08,$04,$09,$07,$0f,$01 ; rom mapping
+   293                          
+   294                          ; intended to support both 8563 and 8568 for CRT, RGB2HDMI, etc.
+   295                          vdc_init: ; // https://techwithdave.davevw.com/2023/12/commodore-128-vdc-reference.html
+   296  15c5 0040                   !byte   0, 64 ; horizontal total (was 126/127)
+   297  15c7 0128                   !byte   1, 40 ; horizontal displayed (was 80)
+   298  15c9 0236                   !byte   2, 54 ; horizontal sync position (was 102)
+   299  15cb 0325                   !byte   3,$25 ; vertical/horizontal sync width (was $49)
+   300  15cd 1689                   !byte  22,$89 ; characters displayed %10001001 (8/9, was 7/8)
+   301  15cf 1957                   !byte  25,$57 ; graph/text/etc %01010111 (set double Pixel mode - bit 4)
+   302  15d1 1b28                   !byte  27, 40 ; addr incr per row (40, was 0) so display skips 40 characters
+   303  15d3 0c00                   !byte  12,  0 ; display address high (unchanged)
+   304  15d5 0d28                   !byte  13, 40 ; display address low (+40 characters to skip left side)
+   305  15d7 1408                   !byte  20,  8 ; atribute address high (unchanged)
+   306  15d9 1528                   !byte  21, 40 ; atribute address low (+40 characters to skip left side)
+   307  15db ffff                   !byte $ff,$ff ; end of table marker
    308                          
-   309                          ; ---------------------------------------------------------------------------
+   309  15dd 00                 col: !byte 0
+   310  15de 00                 row: !byte 0
+   311  15df 00                 linenum: !byte 0
+   312                          
+   313                          finish_80dual:
+   314                          
+   315                          ; ---------------------------------------------------------------------------

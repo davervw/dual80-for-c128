@@ -5,6 +5,9 @@
 ; https://davevw.com
 ; https://github.com/davervw/dual80-for-c128
 ; MIT LICENSE
+;
+; Contributors:
+;   Nath Eric provided VDC 8563 Ver. 1 register updates that work with RGB2HDMI
 ;============================================================================
 
 ; Description
@@ -79,20 +82,20 @@ read_line: ;-----------------------------------------------------------------
     tay
     clc
     lda mult80high,y
-    adc #$08
-    ldx #$12
+    adc #$08 ; attributes address high
+    ldx #$12 ; update address high
     stx vdc_register
 -   bit vdc_register
     bpl -
     sta vdc_value
     lda mult80low,y
-    ldx #$13
+    ldx #$13 ; update address low
     stx vdc_register
 -   bit vdc_register
     bpl -
     sta vdc_value
     ldy #$00
-    ldx #$1f
+    ldx #$1f ; data register
 --  stx vdc_register
 -   bit vdc_register
     bpl -
@@ -288,16 +291,19 @@ vdc_to_vicii_color:
     !byte $00,$0b,$06,$0e,$05,$0d,$0f,$03,$08,$02,$0a,$04,$09,$07,$0c,$01 ; revised mapping
     ;!byte $00,$0c,$06,$0e,$05,$0d,$0b,$03,$02,$0a,$08,$04,$09,$07,$0f,$01 ; rom mapping
 
+; intended to support both 8563 and 8568 for CRT, RGB2HDMI, etc.
 vdc_init: ; // https://techwithdave.davevw.com/2023/12/commodore-128-vdc-reference.html
-    !byte $00,$3f ; horizontal total (was 126/127)
-    !byte $01,$28 ; horizontal displayed (was 80)
-    !byte $02,$36 ; horizontal sync position (was 102)
-    !byte $16,$89 ; characters displayed %10001001 (8/9, was 7/8)
-    !byte $19,$57 ; graph/text/etc %01010111 (set double Pixel mode - bit 4)
-    !byte $1b,$28 ; addr incr per row (40, was 0) so display skips 40 characters
-    !byte $0c,$00 ; display address high (unchanged)
-    !byte $0d,$28 ; display address low (+40 characters to skip left side)
-    !byte $15,$28 ; atribute address low (+40 characters to skip left side)
+    !byte   0, 64 ; horizontal total (was 126/127)
+    !byte   1, 40 ; horizontal displayed (was 80)
+    !byte   2, 54 ; horizontal sync position (was 102)
+    !byte   3,$25 ; vertical/horizontal sync width (was $49)
+    !byte  22,$89 ; characters displayed %10001001 (8/9, was 7/8)
+    !byte  25,$57 ; graph/text/etc %01010111 (set double Pixel mode - bit 4)
+    !byte  27, 40 ; addr incr per row (40, was 0) so display skips 40 characters
+    !byte  12,  0 ; display address high (unchanged)
+    !byte  13, 40 ; display address low (+40 characters to skip left side)
+    !byte  20,  8 ; atribute address high (unchanged)
+    !byte  21, 40 ; atribute address low (+40 characters to skip left side)
     !byte $ff,$ff ; end of table marker
 
 col: !byte 0

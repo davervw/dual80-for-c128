@@ -1,4 +1,4 @@
-	col	= $15d9	; ?
+	col	= $15dd	; ?
 	store_color	= $13d0	; ?
 	mult40low	= $1551	; ?
 	attrs_line	= $1529	; ?
@@ -7,10 +7,10 @@
 	vdc_value	= $d601
 	vdc_register	= $d600
 	display_credit	= $148c	; ?
-	row	= $15da	; ?
+	row	= $15de	; ?
 	store_screen	= $13c4	; ?
 	read_line	= $132d
-	finish_80dual	= $15dc	; unused
+	finish_80dual	= $15e0	; unused
 	mult80high	= $159c	; ?
 	avoid_pages	= $14f1	; ?
 	write_line	= $13a6
@@ -25,4 +25,4 @@
 	vdc_init	= $15c5	; ?
 	store_reverse	= $1486	; ?
 	start_80dual	= $1300	; unused
-	linenum	= $15db	; ?
+	linenum	= $15df	; ?
