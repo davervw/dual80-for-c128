@@ -5,6 +5,8 @@ THe regular 40-column screen (VIC-II) is on the right, and normally 80-column sc
 
 Instructions: be sure to press 80 column button down and boot your C128/C128D with disk in drive
 
+Supports: NTSC/PAL, 8563(ver.1)/8568(ver.2), orig. C128, and C128D, 16K VDC RAM, 64K VDC RAM (does not use extra RAM)
+
 ![gif](c128_extended_screen.gif)
 
 Download: [D64 disk image](https://github.com/davervw/dual80-for-c128/raw/refs/heads/main/80dual.d64)
