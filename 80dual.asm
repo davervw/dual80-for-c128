@@ -296,7 +296,7 @@ vdc_init: ; // https://techwithdave.davevw.com/2023/12/commodore-128-vdc-referen
     !byte   0, 64 ; horizontal total (was 126/127)
     !byte   1, 40 ; horizontal displayed (was 80)
     !byte   2, 54 ; horizontal sync position (was 102)
-    !byte   3,$25 ; vertical/horizontal sync width (was $49)
+    !byte   3,$45 ; vertical/horizontal sync width (was $49)
     !byte  22,$89 ; characters displayed %10001001 (8/9, was 7/8)
     !byte  25,$57 ; graph/text/etc %01010111 (set double Pixel mode - bit 4)
     !byte  27, 40 ; addr incr per row (40, was 0) so display skips 40 characters
